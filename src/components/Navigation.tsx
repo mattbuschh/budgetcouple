@@ -1,9 +1,10 @@
 import React from 'react';
 import { Home, Calendar, Settings, ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
+import { FileSpreadsheet } from 'lucide-react';
 
 interface NavigationProps {
-  vueActuelle: 'tableau-de-bord' | 'mensuel' | 'parametres';
-  onChangementVue: (vue: 'tableau-de-bord' | 'mensuel' | 'parametres') => void;
+  vueActuelle: 'tableau-de-bord' | 'mensuel' | 'parametres' | 'budget-form';
+  onChangementVue: (vue: 'tableau-de-bord' | 'mensuel' | 'parametres' | 'budget-form') => void;
   moisSelectionne: number;
   onChangementMois: (mois: number) => void;
   onDeconnexion: () => void;
@@ -76,6 +77,19 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               <Settings size={18} />
               <span className="hidden lg:inline">Paramètres</span>
               <span className="lg:hidden">Config</span>
+            </button>
+            
+            <button
+              onClick={() => onChangementVue('budget-form')}
+              className={`px-3 lg:px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors text-sm lg:text-base ${
+                vueActuelle === 'budget-form' 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <FileSpreadsheet size={18} />
+              <span className="hidden lg:inline">Saisie Rapide</span>
+              <span className="lg:hidden">Saisie</span>
             </button>
           </div>
 
@@ -214,6 +228,21 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               >
                 <Settings size={20} />
                 <span>Paramètres</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  onChangementVue('budget-form');
+                  setMenuMobileOuvert(false);
+                }}
+                className={`px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors ${
+                  vueActuelle === 'budget-form' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <FileSpreadsheet size={20} />
+                <span>Saisie Rapide</span>
               </button>
               
               <div className="border-t border-gray-200 pt-2 mt-2">
