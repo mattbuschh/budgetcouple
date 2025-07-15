@@ -3,7 +3,6 @@ import { Connexion } from './components/Connexion';
 import { TableauDeBord } from './components/TableauDeBord';
 import { VueMensuelle } from './components/VueMensuelle';
 import { Parametres } from './components/Parametres';
-import { BudgetForm } from './components/BudgetForm';
 import { BudgetProvider } from './context/BudgetContext';
 import { Navigation } from './components/Navigation';
 
@@ -11,7 +10,7 @@ function App() {
   const [estConnecte, setEstConnecte] = useState(() => {
     return localStorage.getItem('budgetAuth') === 'true';
   });
-  const [vueActuelle, setVueActuelle] = useState<'tableau-de-bord' | 'mensuel' | 'parametres' | 'budget-form'>('tableau-de-bord');
+  const [vueActuelle, setVueActuelle] = useState<'tableau-de-bord' | 'mensuel' | 'parametres'>('tableau-de-bord');
   const [moisSelectionne, setMoisSelectionne] = useState<number>(new Date().getMonth());
 
   const gererConnexionReussie = () => {
@@ -47,7 +46,6 @@ function App() {
             />
           )}
           {vueActuelle === 'parametres' && <Parametres />}
-          {vueActuelle === 'budget-form' && <BudgetForm />}
         </main>
       </div>
     </BudgetProvider>

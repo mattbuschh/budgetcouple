@@ -1,10 +1,10 @@
 import React from 'react';
-import { Home, Calendar, Settings, ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
-import { FileSpreadsheet } from 'lucide-react';
+import { Home, Calendar, Settings, ChevronLeft, ChevronRight, LogOut, Menu, X, RefreshCw } from 'lucide-react';
+import { useBudget } from '../context/BudgetContext';
 
 interface NavigationProps {
-  vueActuelle: 'tableau-de-bord' | 'mensuel' | 'parametres' | 'budget-form';
-  onChangementVue: (vue: 'tableau-de-bord' | 'mensuel' | 'parametres' | 'budget-form') => void;
+  vueActuelle: 'tableau-de-bord' | 'mensuel' | 'parametres';
+  onChangementVue: (vue: 'tableau-de-bord' | 'mensuel' | 'parametres') => void;
   moisSelectionne: number;
   onChangementMois: (mois: number) => void;
   onDeconnexion: () => void;
@@ -17,6 +17,7 @@ const mois = [
 
 export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onChangementMois, onDeconnexion }: NavigationProps) {
   const [menuMobileOuvert, setMenuMobileOuvert] = React.useState(false);
+  const { chargerDonneesGoogleSheets, chargement } = useBudget();
 
   const moisPrecedent = () => {
     onChangementMois(moisSelectionne === 0 ? 11 : moisSelectionne - 1);
@@ -24,6 +25,10 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
 
   const moisSuivant = () => {
     onChangementMois(moisSelectionne === 11 ? 0 : moisSelectionne + 1);
+  };
+
+  const gererActualisation = async () => {
+    await chargerDonneesGoogleSheets();
   };
 
   return (
@@ -78,19 +83,6 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               <span className="hidden lg:inline">Paramètres</span>
               <span className="lg:hidden">Config</span>
             </button>
-            
-            <button
-              onClick={() => onChangementVue('budget-form')}
-              className={`px-3 lg:px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors text-sm lg:text-base ${
-                vueActuelle === 'budget-form' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <FileSpreadsheet size={18} />
-              <span className="hidden lg:inline">Saisie Rapide</span>
-              <span className="lg:hidden">Saisie</span>
-            </button>
           </div>
 
           {/* Sélecteur de mois - desktop */}
@@ -118,26 +110,15 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
 
           {/* Boutons desktop */}
           <div className="hidden md:flex items-center space-x-2">
-            {/* Sélecteur de mois mobile pour vue mensuelle */}
-            {vueActuelle === 'mensuel' && (
-              <div className="md:hidden flex items-center space-x-2">
-                <button
-                  onClick={moisPrecedent}
-                  className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <div className="text-sm font-semibold text-gray-800 min-w-[60px] text-center">
-                  {mois[moisSelectionne].substring(0, 3)}
-                </div>
-                <button
-                  onClick={moisSuivant}
-                  className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
+            <button
+              onClick={gererActualisation}
+              disabled={chargement}
+              className="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 text-sm lg:text-base"
+              title="Actualiser les données Google Sheets"
+            >
+              <RefreshCw size={16} className={`lg:w-4 lg:h-4 ${chargement ? 'animate-spin' : ''}`} />
+              <span className="hidden lg:inline">Sync</span>
+            </button>
             
             <button
               onClick={onDeconnexion}
@@ -171,6 +152,15 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
                 </button>
               </div>
             )}
+            
+            <button
+              onClick={gererActualisation}
+              disabled={chargement}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+              title="Actualiser"
+            >
+              <RefreshCw size={16} className={chargement ? 'animate-spin' : ''} />
+            </button>
             
             <button
               onClick={() => setMenuMobileOuvert(!menuMobileOuvert)}
@@ -228,21 +218,6 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               >
                 <Settings size={20} />
                 <span>Paramètres</span>
-              </button>
-              
-              <button
-                onClick={() => {
-                  onChangementVue('budget-form');
-                  setMenuMobileOuvert(false);
-                }}
-                className={`px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors ${
-                  vueActuelle === 'budget-form' 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <FileSpreadsheet size={20} />
-                <span>Saisie Rapide</span>
               </button>
               
               <div className="border-t border-gray-200 pt-2 mt-2">

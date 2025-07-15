@@ -4,6 +4,8 @@ import { SectionRevenus } from './sections/SectionRevenus';
 import { SectionDepenses } from './sections/SectionDepenses';
 import { SectionEpargne } from './sections/SectionEpargne';
 import { SectionSante } from './sections/SectionSante';
+import { Plus, Database } from 'lucide-react';
+import { AjoutRapide } from './AjoutRapide';
 
 interface VueMensuelleProps {
   mois: number;
@@ -16,17 +18,23 @@ const nomsMois = [
 ];
 
 export function VueMensuelle({ mois }: VueMensuelleProps) {
-  const { donnees, calculerTotauxMensuels } = useBudget();
-  const [sectionActive, setSectionActive] = useState<'revenus' | 'depenses' | 'epargne' | 'sante'>('revenus');
+  const { donnees, calculerTotauxMensuels, donneesGoogleSheets } = useBudget();
+  const [sectionActive, setSectionActive] = useState<'revenus' | 'depenses' | 'epargne' | 'sante' | 'ajout-rapide'>('revenus');
 
   const donneesMois = donnees.mois[mois];
   const totaux = calculerTotauxMensuels(mois);
+
+  // Filtrer les données Google Sheets pour le mois actuel
+  const donneesGoogleSheetsMois = donneesGoogleSheets.filter(
+    entree => entree.mois === nomsMois[mois]
+  );
 
   const couleursSections = {
     revenus: 'bg-green-50 border-green-200',
     depenses: 'bg-red-50 border-red-200',
     epargne: 'bg-blue-50 border-blue-200',
-    sante: 'bg-purple-50 border-purple-200'
+    sante: 'bg-purple-50 border-purple-200',
+    'ajout-rapide': 'bg-gray-50 border-gray-200'
   };
 
   return (
@@ -45,6 +53,14 @@ export function VueMensuelle({ mois }: VueMensuelleProps) {
             </p>
           </div>
         </div>
+        
+        {/* Indicateur Google Sheets pour le mois */}
+        {donneesGoogleSheetsMois.length > 0 && (
+          <div className="mt-4 flex items-center space-x-2 text-sm text-blue-600">
+            <Database className="w-4 h-4" />
+            <span>{donneesGoogleSheetsMois.length} entrées synchronisées depuis Google Sheets</span>
+          </div>
+        )}
       </div>
 
       {/* Cartes de Résumé */}
@@ -154,18 +170,20 @@ export function VueMensuelle({ mois }: VueMensuelleProps) {
             { cle: 'revenus', libelle: 'Revenus', couleur: 'text-green-600' },
             { cle: 'depenses', libelle: 'Dépenses', couleur: 'text-red-600' },
             { cle: 'epargne', libelle: 'Épargne', couleur: 'text-blue-600' },
-            { cle: 'sante', libelle: 'Santé', couleur: 'text-purple-600' }
+            { cle: 'sante', libelle: 'Santé', couleur: 'text-purple-600' },
+            { cle: 'ajout-rapide', libelle: 'Ajout Rapide', couleur: 'text-gray-600' }
           ].map((section) => (
             <button
               key={section.cle}
               onClick={() => setSectionActive(section.cle as any)}
-              className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap ${
+              className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap flex items-center space-x-1 ${
                 sectionActive === section.cle
                   ? `bg-${section.couleur.split('-')[1]}-100 ${section.couleur}`
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              {section.libelle}
+              {section.cle === 'ajout-rapide' && <Plus size={16} />}
+              <span>{section.libelle}</span>
             </button>
           ))}
         </div>
@@ -177,6 +195,7 @@ export function VueMensuelle({ mois }: VueMensuelleProps) {
         {sectionActive === 'depenses' && <SectionDepenses mois={mois} />}
         {sectionActive === 'epargne' && <SectionEpargne mois={mois} />}
         {sectionActive === 'sante' && <SectionSante mois={mois} />}
+        {sectionActive === 'ajout-rapide' && <AjoutRapide moisSelectionne={nomsMois[mois]} />}
       </div>
     </div>
   );
