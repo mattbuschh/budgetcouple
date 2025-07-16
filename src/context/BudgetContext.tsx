@@ -125,14 +125,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔄 Initialisation du contexte Budget...');
     
-    // Vérifier d'abord si les variables d'environnement existent
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      console.error('❌ Variables d\'environnement Supabase manquantes');
-      setErreur('Configuration Supabase manquante. Veuillez configurer les variables d\'environnement.');
-      setChargement(false);
-      return;
-    }
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Changement d\'état auth:', event, session?.user?.email);
