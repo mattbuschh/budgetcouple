@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Calendar, Settings, ChevronLeft, ChevronRight, LogOut, Menu, X, RefreshCw } from 'lucide-react';
+import { Home, Calendar, Settings, ChevronLeft, ChevronRight, LogOut, Menu, X } from 'lucide-react';
 import { useBudget } from '../context/BudgetContext';
 
 interface NavigationProps {
@@ -7,7 +7,6 @@ interface NavigationProps {
   onChangementVue: (vue: 'tableau-de-bord' | 'mensuel' | 'parametres') => void;
   moisSelectionne: number;
   onChangementMois: (mois: number) => void;
-  onDeconnexion: () => void;
 }
 
 const mois = [
@@ -15,9 +14,9 @@ const mois = [
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
-export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onChangementMois, onDeconnexion }: NavigationProps) {
+export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onChangementMois }: NavigationProps) {
   const [menuMobileOuvert, setMenuMobileOuvert] = React.useState(false);
-  const { chargerDonneesGoogleSheets, chargement } = useBudget();
+  const { signOut, user } = useBudget();
 
   const moisPrecedent = () => {
     onChangementMois(moisSelectionne === 0 ? 11 : moisSelectionne - 1);
@@ -27,8 +26,8 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
     onChangementMois(moisSelectionne === 11 ? 0 : moisSelectionne + 1);
   };
 
-  const gererActualisation = async () => {
-    await chargerDonneesGoogleSheets();
+  const gererDeconnexion = async () => {
+    await signOut();
   };
 
   return (
@@ -41,6 +40,11 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               <span className="hidden sm:inline">Gestionnaire de Budget</span>
               <span className="sm:hidden">Budget</span>
             </h1>
+            {user && (
+              <div className="ml-4 text-sm text-gray-500 hidden md:block">
+                {user.email}
+              </div>
+            )}
           </div>
 
           {/* Navigation desktop */}
@@ -111,17 +115,7 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
           {/* Boutons desktop */}
           <div className="hidden md:flex items-center space-x-2">
             <button
-              onClick={gererActualisation}
-              disabled={chargement}
-              className="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 text-sm lg:text-base"
-              title="Actualiser les données Google Sheets"
-            >
-              <RefreshCw size={16} className={`lg:w-4 lg:h-4 ${chargement ? 'animate-spin' : ''}`} />
-              <span className="hidden lg:inline">Sync</span>
-            </button>
-            
-            <button
-              onClick={onDeconnexion}
+              onClick={gererDeconnexion}
               className="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm lg:text-base"
               title="Se déconnecter"
             >
@@ -152,15 +146,6 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
                 </button>
               </div>
             )}
-            
-            <button
-              onClick={gererActualisation}
-              disabled={chargement}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-              title="Actualiser"
-            >
-              <RefreshCw size={16} className={chargement ? 'animate-spin' : ''} />
-            </button>
             
             <button
               onClick={() => setMenuMobileOuvert(!menuMobileOuvert)}
@@ -223,7 +208,7 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               <div className="border-t border-gray-200 pt-2 mt-2">
                 <button
                   onClick={() => {
-                    onDeconnexion();
+                    gererDeconnexion();
                     setMenuMobileOuvert(false);
                   }}
                   className="w-full px-4 py-3 rounded-lg flex items-center space-x-3 text-gray-600 hover:bg-gray-100 transition-colors"

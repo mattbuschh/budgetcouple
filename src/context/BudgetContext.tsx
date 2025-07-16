@@ -1,30 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase, BudgetEntry, BankAccount, UserSettings } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
 
-// Interface pour une ligne de données Google Sheets
-export interface GoogleSheetsEntry {
-  date: string;
-  type: string;
-  partenaire: string;
-  categorie: string;
-  montant: number;
-  compte: string;
-  commentaire: string;
-  mois: string;
-}
-
-// Interface pour ajouter une ligne
-export interface LigneBudget {
-  date: string;
-  type: string;
-  partenaire: string;
-  categorie: string;
-  montant: number;
-  compte: string;
-  commentaire: string;
-  mois: string;
-}
-
-// Interfaces existantes
+// Interfaces pour la compatibilité avec l'interface existante
 export interface EntreeRevenu {
   source: string;
   montant: number;
@@ -83,8 +61,8 @@ export interface DonneesBudget {
 }
 
 interface BudgetContextType {
+  user: User | null;
   donnees: DonneesBudget;
-  donneesGoogleSheets: GoogleSheetsEntry[];
   chargement: boolean;
   erreur: string | null;
   calculerTotauxMensuels: (mois: number) => {
@@ -93,19 +71,33 @@ interface BudgetContextType {
     totalEpargne: number;
     restant: number;
   };
-  mettreAJourPersonnes: (personnes: DonneesBudget['personnes']) => void;
-  mettreAJourDevise: (devise: string) => void;
-  mettreAJourComptesBancaires: (comptes: CompteBancaire[]) => void;
-  mettreAJourDonneesMois: (mois: number, donnees: Partial<DonneesMois>) => void;
-  chargerDonneesGoogleSheets: () => Promise<void>;
-  ajouterEntreeGoogleSheets: (ligne: LigneBudget) => Promise<void>;
+  mettreAJourPersonnes: (personnes: DonneesBudget['personnes']) => Promise<void>;
+  mettreAJourDevise: (devise: string) => Promise<void>;
+  mettreAJourComptesBancaires: (comptes: CompteBancaire[]) => Promise<void>;
+  mettreAJourDonneesMois: (mois: number, donnees: Partial<DonneesMois>) => Promise<void>;
+  ajouterEntree: (entree: {
+    type: 'revenu' | 'depense' | 'epargne' | 'sante';
+    personne: 'personne1' | 'personne2' | 'partage';
+    categorie: string;
+    montant: number;
+    description?: string;
+    compte?: string;
+    mois: string;
+    expense_type?: 'variable' | 'fixe';
+    rembourse?: boolean;
+  }) => Promise<void>;
+  supprimerEntree: (id: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
-// URL de l'API Google Sheets
-const API_URL = 'https://v1.nocodeapi.com/mattbusch/google_sheets/leEhXUyGQcrZAMIJ?tabId=Feuille%201';
-
+const nomsMois = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
 
 // Données par défaut
 const donneesParDefaut: DonneesBudget = {
@@ -114,10 +106,7 @@ const donneesParDefaut: DonneesBudget = {
     personne2: { nom: 'Partenaire 2', couleur: '#EF4444' }
   },
   devise: '€',
-  comptesBancaires: [
-    { id: '1', nom: 'Compte Courant', solde: 2500, couleur: '#10B981' },
-    { id: '2', nom: 'Livret A', solde: 15000, couleur: '#F59E0B' }
-  ],
+  comptesBancaires: [],
   mois: Array.from({ length: 12 }, () => ({
     revenus: [],
     depenses: [],
@@ -127,127 +116,134 @@ const donneesParDefaut: DonneesBudget = {
 };
 
 export function BudgetProvider({ children }: { children: ReactNode }) {
-  const [donnees, setDonnees] = useState<DonneesBudget>(() => {
-    const donneesStockees = localStorage.getItem('donneesBudget');
-    return donneesStockees ? JSON.parse(donneesStockees) : donneesParDefaut;
-  });
-
-  const [donneesGoogleSheets, setDonneesGoogleSheets] = useState<GoogleSheetsEntry[]>([]);
-  const [chargement, setChargement] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [donnees, setDonnees] = useState<DonneesBudget>(donneesParDefaut);
+  const [chargement, setChargement] = useState<boolean>(true);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  // Fonction pour charger les données depuis Google Sheets
-  const chargerDonneesGoogleSheets = async (): Promise<void> => {
-    setChargement(true);
-    setErreur(null);
-    
-    try {
-      console.log('🔄 Chargement des données Google Sheets...');
-      
-      const response = await fetch(API_URL, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+  // Écouter les changements d'authentification
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await chargerDonnees();
+        } else {
+          setDonnees(donneesParDefaut);
         }
-      });
+        setChargement(false);
+      }
+    );
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Charger les données depuis Supabase
+  const chargerDonnees = async () => {
+    if (!user) return;
+
+    try {
+      setChargement(true);
+      setErreur(null);
+
+      // Charger les paramètres utilisateur
+      const { data: settings, error: settingsError } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (settingsError && settingsError.code !== 'PGRST116') {
+        throw settingsError;
       }
 
-      const result = await response.json();
-      console.log('📊 Données brutes reçues:', result);
-      
-      // Ignorer la première ligne (en-têtes) et traiter les données
-      const lignes = result.data ? result.data.slice(1) : [];
-      
-      const entrees: GoogleSheetsEntry[] = lignes
-        .filter((ligne: any[]) => ligne && ligne.length >= 8) // Filtrer les lignes vides
-        .map((ligne: any[], index: number) => {
-          try {
-            return {
-              date: ligne[0] || '',
-              type: ligne[1] || '',
-              partenaire: ligne[2] || '',
-              categorie: ligne[3] || '',
-              montant: parseFloat(ligne[4]) || 0,
-              compte: ligne[5] || '',
-              commentaire: ligne[6] || '',
-              mois: ligne[7] || ''
-            };
-          } catch (error) {
-            console.warn(`⚠️ Erreur lors du traitement de la ligne ${index + 2}:`, error);
-            return null;
+      // Charger les comptes bancaires
+      const { data: bankAccounts, error: bankError } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at');
+
+      if (bankError) throw bankError;
+
+      // Charger les entrées de budget
+      const { data: entries, error: entriesError } = await supabase
+        .from('budget_entries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date');
+
+      if (entriesError) throw entriesError;
+
+      // Transformer les données pour l'interface existante
+      const nouvellesDonnees: DonneesBudget = {
+        personnes: {
+          personne1: {
+            nom: settings?.personne1_nom || 'Partenaire 1',
+            couleur: settings?.personne1_couleur || '#3B82F6',
+            photo: settings?.personne1_photo
+          },
+          personne2: {
+            nom: settings?.personne2_nom || 'Partenaire 2',
+            couleur: settings?.personne2_couleur || '#EF4444',
+            photo: settings?.personne2_photo
           }
+        },
+        devise: settings?.devise || '€',
+        comptesBancaires: bankAccounts?.map(account => ({
+          id: account.id,
+          nom: account.nom,
+          solde: account.solde,
+          couleur: account.couleur
+        })) || [],
+        mois: Array.from({ length: 12 }, (_, index) => {
+          const moisNom = nomsMois[index];
+          const entriesMois = entries?.filter(entry => entry.mois === moisNom) || [];
+
+          return {
+            revenus: entriesMois
+              .filter(entry => entry.type === 'revenu')
+              .map(entry => ({
+                source: entry.categorie,
+                montant: entry.montant,
+                personne: entry.personne as 'personne1' | 'personne2'
+              })),
+            depenses: entriesMois
+              .filter(entry => entry.type === 'depense')
+              .map(entry => ({
+                categorie: entry.categorie,
+                montant: entry.montant,
+                description: entry.description || '',
+                personne: entry.personne as 'personne1' | 'personne2' | 'partage',
+                type: entry.expense_type as 'variable' | 'fixe'
+              })),
+            epargne: entriesMois
+              .filter(entry => entry.type === 'epargne')
+              .map(entry => ({
+                objectif: entry.categorie,
+                montant: entry.montant,
+                personne: entry.personne as 'personne1' | 'personne2' | 'partage'
+              })),
+            remboursementsSante: entriesMois
+              .filter(entry => entry.type === 'sante')
+              .map(entry => ({
+                description: entry.description || entry.categorie,
+                montant: entry.montant,
+                personne: entry.personne as 'personne1' | 'personne2',
+                rembourse: entry.rembourse || false
+              }))
+          };
         })
-        .filter((entree): entree is GoogleSheetsEntry => entree !== null);
-      
-      console.log(`✅ ${entrees.length} entrées chargées avec succès`);
-      setDonneesGoogleSheets(entrees);
-      
+      };
+
+      setDonnees(nouvellesDonnees);
     } catch (error) {
-      const messageErreur = error instanceof Error ? error.message : 'Erreur inconnue';
-      console.error('❌ Erreur lors du chargement des données Google Sheets:', messageErreur);
-      setErreur(messageErreur);
-      setDonneesGoogleSheets([]);
+      console.error('Erreur lors du chargement des données:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
     } finally {
       setChargement(false);
     }
   };
-
-  // Fonction pour ajouter une entrée à Google Sheets
-  const ajouterEntreeGoogleSheets = async (ligne: LigneBudget): Promise<void> => {
-    try {
-      console.log('📤 Ajout d\'une ligne à Google Sheets:', ligne);
-      
-      const data = [
-        [
-          ligne.date,
-          ligne.type,
-          ligne.partenaire,
-          ligne.categorie,
-          ligne.montant,
-          ligne.compte,
-          ligne.commentaire,
-          ligne.mois
-        ]
-      ];
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
-      }
-
-      console.log('✅ Ligne ajoutée avec succès à Google Sheets');
-      
-      // Recharger les données après ajout
-      await chargerDonneesGoogleSheets();
-      
-    } catch (error) {
-      console.error('❌ Erreur lors de l\'ajout:', error);
-      const messageErreur = error instanceof Error ? error.message : 'Erreur lors de l\'ajout';
-      setErreur(messageErreur);
-      throw error;
-    }
-  };
-
-  // Charger les données automatiquement au montage
-  useEffect(() => {
-    console.log('🚀 BudgetProvider monté - Chargement initial des données');
-    chargerDonneesGoogleSheets();
-  }, []);
-
-  // Sauvegarder les données locales
-  useEffect(() => {
-    localStorage.setItem('donneesBudget', JSON.stringify(donnees));
-  }, [donnees]);
 
   const calculerTotauxMensuels = (mois: number) => {
     const donneesMois = donnees.mois[mois];
@@ -259,19 +255,85 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     return { totalRevenus, totalDepenses, totalEpargne, restant };
   };
 
-  const mettreAJourPersonnes = (personnes: DonneesBudget['personnes']) => {
-    setDonnees(prev => ({ ...prev, personnes }));
+  const mettreAJourPersonnes = async (personnes: DonneesBudget['personnes']) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          personne1_nom: personnes.personne1.nom,
+          personne1_couleur: personnes.personne1.couleur,
+          personne1_photo: personnes.personne1.photo,
+          personne2_nom: personnes.personne2.nom,
+          personne2_couleur: personnes.personne2.couleur,
+          personne2_photo: personnes.personne2.photo
+        });
+
+      if (error) throw error;
+
+      setDonnees(prev => ({ ...prev, personnes }));
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des personnes:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+    }
   };
 
-  const mettreAJourDevise = (devise: string) => {
-    setDonnees(prev => ({ ...prev, devise }));
+  const mettreAJourDevise = async (devise: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          devise
+        });
+
+      if (error) throw error;
+
+      setDonnees(prev => ({ ...prev, devise }));
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la devise:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+    }
   };
 
-  const mettreAJourComptesBancaires = (comptesBancaires: CompteBancaire[]) => {
-    setDonnees(prev => ({ ...prev, comptesBancaires }));
+  const mettreAJourComptesBancaires = async (comptes: CompteBancaire[]) => {
+    if (!user) return;
+
+    try {
+      // Supprimer tous les comptes existants
+      await supabase
+        .from('bank_accounts')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Ajouter les nouveaux comptes
+      if (comptes.length > 0) {
+        const { error } = await supabase
+          .from('bank_accounts')
+          .insert(comptes.map(compte => ({
+            user_id: user.id,
+            nom: compte.nom,
+            solde: compte.solde,
+            couleur: compte.couleur
+          })));
+
+        if (error) throw error;
+      }
+
+      setDonnees(prev => ({ ...prev, comptesBancaires: comptes }));
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des comptes bancaires:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+    }
   };
 
-  const mettreAJourDonneesMois = (mois: number, nouvellesDonnees: Partial<DonneesMois>) => {
+  const mettreAJourDonneesMois = async (mois: number, nouvellesDonnees: Partial<DonneesMois>) => {
+    // Cette fonction est maintenant gérée par ajouterEntree et supprimerEntree
+    // On met à jour localement pour la compatibilité
     setDonnees(prev => ({
       ...prev,
       mois: prev.mois.map((donneesMois, index) =>
@@ -280,9 +342,118 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const ajouterEntree = async (entree: {
+    type: 'revenu' | 'depense' | 'epargne' | 'sante';
+    personne: 'personne1' | 'personne2' | 'partage';
+    categorie: string;
+    montant: number;
+    description?: string;
+    compte?: string;
+    mois: string;
+    expense_type?: 'variable' | 'fixe';
+    rembourse?: boolean;
+  }) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('budget_entries')
+        .insert({
+          user_id: user.id,
+          type: entree.type,
+          personne: entree.personne,
+          categorie: entree.categorie,
+          montant: entree.montant,
+          description: entree.description,
+          compte: entree.compte,
+          mois: entree.mois,
+          expense_type: entree.expense_type,
+          rembourse: entree.rembourse
+        });
+
+      if (error) throw error;
+
+      // Recharger les données
+      await chargerDonnees();
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'entrée:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+    }
+  };
+
+  const supprimerEntree = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('budget_entries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Recharger les données
+      await chargerDonnees();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'entrée:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      setChargement(true);
+      setErreur(null);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur lors de la connexion:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur de connexion');
+      throw error;
+    } finally {
+      setChargement(false);
+    }
+  };
+
+  const signUp = async (email: string, password: string) => {
+    try {
+      setChargement(true);
+      setErreur(null);
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur lors de l\'inscription:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur d\'inscription');
+      throw error;
+    } finally {
+      setChargement(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur de déconnexion');
+    }
+  };
+
   const contextValue: BudgetContextType = {
+    user,
     donnees,
-    donneesGoogleSheets,
     chargement,
     erreur,
     calculerTotauxMensuels,
@@ -290,8 +461,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     mettreAJourDevise,
     mettreAJourComptesBancaires,
     mettreAJourDonneesMois,
-    chargerDonneesGoogleSheets,
-    ajouterEntreeGoogleSheets
+    ajouterEntree,
+    supprimerEntree,
+    signIn,
+    signUp,
+    signOut
   };
 
   return (

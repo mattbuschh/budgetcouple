@@ -1,7 +1,7 @@
 import React from 'react';
 import { useBudget } from '../context/BudgetContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, PiggyBank, CreditCard, Database, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, PiggyBank, CreditCard, Database, User } from 'lucide-react';
 
 const nomsMois = [
   'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
@@ -9,7 +9,7 @@ const nomsMois = [
 ];
 
 export function TableauDeBord() {
-  const { donnees, donneesGoogleSheets, calculerTotauxMensuels, chargement, erreur } = useBudget();
+  const { donnees, calculerTotauxMensuels, user } = useBudget();
 
   const donneesAnnuelles = nomsMois.map((mois, index) => {
     const totaux = calculerTotauxMensuels(index);
@@ -46,37 +46,23 @@ export function TableauDeBord() {
 
   return (
     <div className="space-y-6">
-      {/* Indicateur de statut Google Sheets */}
+      {/* Indicateur de statut Supabase */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Database className="w-5 h-5 text-blue-600" />
+            <Database className="w-5 h-5 text-green-600" />
             <div>
-              <h3 className="font-semibold text-gray-800">Synchronisation Google Sheets</h3>
+              <h3 className="font-semibold text-gray-800">Base de données Supabase</h3>
               <p className="text-sm text-gray-600">
-                {donneesGoogleSheets.length} entrées synchronisées
+                Connecté en tant que {user?.email}
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {chargement && (
-              <div className="flex items-center space-x-2 text-blue-600">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-sm">Synchronisation...</span>
-              </div>
-            )}
-            {erreur && (
-              <div className="flex items-center space-x-2 text-red-600">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">Erreur de sync</span>
-              </div>
-            )}
-            {!chargement && !erreur && (
-              <div className="flex items-center space-x-2 text-green-600">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span className="text-sm">Synchronisé</span>
-              </div>
-            )}
+            <div className="flex items-center space-x-2 text-green-600">
+              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+              <span className="text-sm">Synchronisé</span>
+            </div>
           </div>
         </div>
       </div>
@@ -215,60 +201,6 @@ export function TableauDeBord() {
           ))}
         </div>
       </div>
-
-      {/* Aperçu des données Google Sheets */}
-      {donneesGoogleSheets.length > 0 && (
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">
-            Dernières Entrées Google Sheets ({donneesGoogleSheets.length})
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mois</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {donneesGoogleSheets.slice(-10).reverse().map((entree, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                      {new Date(entree.date).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className={`font-medium ${
-                        entree.type === 'revenu' ? 'text-green-600' :
-                        entree.type === 'dépense' ? 'text-red-600' :
-                        entree.type === 'épargne' ? 'text-blue-600' : 'text-purple-600'
-                      }`}>
-                        {entree.type.charAt(0).toUpperCase() + entree.type.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-gray-900 truncate max-w-xs">{entree.categorie}</td>
-                    <td className="px-3 py-2 font-medium">
-                      <span className={
-                        entree.type === 'revenu' ? 'text-green-600' :
-                        entree.type === 'dépense' ? 'text-red-600' :
-                        entree.type === 'épargne' ? 'text-blue-600' : 'text-purple-600'
-                      }>
-                        {entree.montant.toLocaleString('fr-FR', { 
-                          style: 'currency', 
-                          currency: 'EUR' 
-                        })}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-gray-900">{entree.mois}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
