@@ -10,6 +10,8 @@ export function Parametres() {
   const [ajoutCompteEnCours, setAjoutCompteEnCours] = useState(false);
   const [sauvegarde, setSauvegarde] = useState(false);
   const [modifie, setModifie] = useState(false);
+  const [sauvegarde, setSauvegarde] = useState(false);
+  const [modifie, setModifie] = useState(false);
   const [nouveauCompte, setNouveauCompte] = useState({
     nom: '',
     solde: 0,
@@ -88,6 +90,26 @@ export function Parametres() {
     setModifie(true);
   };
 
+  const sauvegarderParametres = async () => {
+    try {
+      setSauvegarde(true);
+      
+      // Sauvegarder les personnes
+      await mettreAJourPersonnes(parametresPersonnes);
+      
+      // Sauvegarder la devise
+      await mettreAJourDevise(devise);
+      
+      setModifie(false);
+      
+      // Afficher un message de succès temporaire
+      setTimeout(() => setSauvegarde(false), 2000);
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      alert('Erreur lors de la sauvegarde');
+      setSauvegarde(false);
+    }
+  };
   const sauvegarderParametres = async () => {
     try {
       setSauvegarde(true);
@@ -188,6 +210,26 @@ export function Parametres() {
     <div className="space-y-6">
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
         <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Paramètres</h2>
+          
+          {/* Bouton de sauvegarde */}
+          <button
+            onClick={sauvegarderParametres}
+            disabled={!modifie || sauvegarde}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
+              modifie && !sauvegarde
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : sauvegarde
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Save size={16} className="sm:w-5 sm:h-5" />
+            <span>
+              {sauvegarde ? 'Sauvegardé ✓' : modifie ? 'Sauvegarder' : 'Aucune modification'}
+            </span>
+          </button>
+        </div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Paramètres</h2>
           
           {/* Bouton de sauvegarde */}
