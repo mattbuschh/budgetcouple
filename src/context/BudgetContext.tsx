@@ -201,6 +201,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     try {
       setChargement(true);
       setErreur(null);
+      
+      console.log('📊 Chargement des données pour utilisateur:', user.id);
 
       // Charger les paramètres utilisateur
       const { data: settings, error: settingsError } = await supabase
@@ -210,8 +212,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (settingsError && settingsError.code !== 'PGRST116') {
+        console.error('❌ Erreur chargement settings:', settingsError);
         throw settingsError;
       }
+      
+      console.log('⚙️ Settings chargés:', settings);
 
       // Charger les comptes bancaires
       const { data: bankAccounts, error: bankError } = await supabase
@@ -220,7 +225,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .eq('user_id', user.id)
         .order('created_at');
 
-      if (bankError) throw bankError;
+      if (bankError) {
+        console.error('❌ Erreur chargement comptes:', bankError);
+        throw bankError;
+      }
+      
+      console.log('🏦 Comptes chargés:', bankAccounts);
 
       // Charger les entrées de budget
       const { data: entries, error: entriesError } = await supabase
@@ -229,7 +239,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .eq('user_id', user.id)
         .order('date');
 
-      if (entriesError) throw entriesError;
+      if (entriesError) {
+        console.error('❌ Erreur chargement entrées:', entriesError);
+        throw entriesError;
+      }
+      
+      console.log('📝 Entrées chargées:', entries);
 
       // Transformer les données pour l'interface existante
       const nouvellesDonnees: DonneesBudget = {
@@ -291,6 +306,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           };
         })
       };
+      
+      console.log('🎯 Données finales transformées:', nouvellesDonnees);
 
       setDonnees(nouvellesDonnees);
     } catch (error) {
@@ -317,9 +334,9 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 Mise à jour des personnes:', personnes);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('user_settings')
-        .upsert({
+        .upsert([{
           user_id: user.id,
           personne1_nom: personnes.personne1.nom,
           personne1_couleur: personnes.personne1.couleur,
@@ -327,16 +344,19 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           personne2_nom: personnes.personne2.nom,
           personne2_couleur: personnes.personne2.couleur,
           personne2_photo: personnes.personne2.photo
-        }, {
-          onConflict: 'user_id'
+        }], {
+          onConflict: 'user_id',
+          returning: 'minimal'
         });
 
       if (error) {
         console.error('❌ Erreur mise à jour personnes:', error);
+        console.error('📝 Détails de l\'erreur:', error.message);
+        console.error('💡 Code d\'erreur:', error.code);
         throw error;
       }
       
-      console.log('✅ Personnes mises à jour avec succès');
+      console.log('✅ Personnes mises à jour avec succès:', data);
 
       setDonnees(prev => ({ ...prev, personnes }));
     } catch (error) {
@@ -352,21 +372,23 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 Mise à jour devise:', devise);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('user_settings')
-        .upsert({
+        .upsert([{
           user_id: user.id,
           devise
-        }, {
-          onConflict: 'user_id'
+        }], {
+          onConflict: 'user_id',
+          returning: 'minimal'
         });
 
       if (error) {
         console.error('❌ Erreur mise à jour devise:', error);
+        console.error('📝 Détails de l\'erreur:', error.message);
         throw error;
       }
       
-      console.log('✅ Devise mise à jour avec succès');
+      console.log('✅ Devise mise à jour avec succès:', data);
 
       setDonnees(prev => ({ ...prev, devise }));
     } catch (error) {
@@ -383,19 +405,22 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       console.log('🔄 Mise à jour comptes bancaires:', comptes);
       
       // Supprimer tous les comptes existants
-      const { error: deleteError } = await supabase
+      const { data: deleteData, error: deleteError } = await supabase
         .from('bank_accounts')
         .delete()
         .eq('user_id', user.id);
         
       if (deleteError) {
         console.error('❌ Erreur suppression comptes:', deleteError);
+        console.error('📝 Détails suppression:', deleteError.message);
         throw deleteError;
       }
+      
+      console.log('🗑️ Comptes supprimés:', deleteData);
 
       // Ajouter les nouveaux comptes
       if (comptes.length > 0) {
-        const { error } = await supabase
+        const { data: insertData, error } = await supabase
           .from('bank_accounts')
           .insert(comptes.map(compte => ({
             id: compte.id,
@@ -407,8 +432,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('❌ Erreur ajout comptes:', error);
+          console.error('📝 Détails ajout:', error.message);
           throw error;
         }
+        
+        console.log('➕ Comptes ajoutés:', insertData);
       }
       
       console.log('✅ Comptes bancaires mis à jour avec succès');
