@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, BudgetEntry, BankAccount, UserSettings } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { setupDatabaseAlternative } from '../lib/database-setup';
 
 // Interfaces pour la compatibilité avec l'interface existante
 export interface EntreeRevenu {
@@ -123,10 +124,15 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
   // Écouter les changements d'authentification
   useEffect(() => {
+    // Configurer la base de données au démarrage
+    setupDatabaseAlternative();
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) {
+          // Créer les paramètres utilisateur s'ils n'existent pas
+          await creerParametresUtilisateur(session.user.id);
           await chargerDonnees();
         } else {
           setDonnees(donneesParDefaut);
@@ -137,6 +143,36 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Créer les paramètres utilisateur par défaut
+  const creerParametresUtilisateur = async (userId: string) => {
+    try {
+      const { data: existing } = await supabase
+        .from('user_settings')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (!existing) {
+        const { error } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: userId,
+            devise: '€',
+            personne1_nom: 'Partenaire 1',
+            personne1_couleur: '#3B82F6',
+            personne2_nom: 'Partenaire 2',
+            personne2_couleur: '#EF4444'
+          });
+
+        if (error) {
+          console.error('Erreur création paramètres:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur vérification paramètres:', error);
+    }
+  };
 
   // Charger les données depuis Supabase
   const chargerDonnees = async () => {

@@ -27,14 +27,20 @@ export function Connexion() {
     try {
       if (modeInscription) {
         await signUp(email, motDePasse);
-        setErreurLocale('');
-        alert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
-        setModeInscription(false);
+        // Attendre un peu pour que l'utilisateur soit créé
+        setTimeout(() => {
+          setErreurLocale('');
+          alert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
+          setModeInscription(false);
+        }, 1000);
       } else {
         await signIn(email, motDePasse);
       }
     } catch (error) {
       console.error('Erreur d\'authentification:', error);
+      if (error instanceof Error) {
+        setErreurLocale(error.message);
+      }
     }
   };
 
