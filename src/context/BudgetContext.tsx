@@ -125,6 +125,14 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔄 Initialisation du contexte Budget...');
     
+    // Vérifier d'abord si les variables d'environnement existent
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('❌ Variables d\'environnement Supabase manquantes');
+      setErreur('Configuration Supabase manquante. Veuillez configurer les variables d\'environnement.');
+      setChargement(false);
+      return;
+    }
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Changement d\'état auth:', event, session?.user?.email);
@@ -133,15 +141,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           try {
             console.log('👤 Utilisateur connecté, création des paramètres...');
-            // Créer les paramètres utilisateur s'ils n'existent pas
-            await creerParametresUtilisateur(session.user.id);
             console.log('📊 Chargement des données...');
             await chargerDonnees();
             console.log('✅ Initialisation terminée avec succès');
           } catch (error) {
             console.error('❌ Erreur lors de l\'initialisation utilisateur:', error);
             setErreur(error instanceof Error ? error.message : 'Erreur d\'initialisation');
-            setChargement(false); // Important: arrêter le chargement même en cas d'erreur
           }
         } else {
           console.log('👤 Utilisateur déconnecté');
@@ -154,62 +159,17 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Créer les paramètres utilisateur par défaut
-  const creerParametresUtilisateur = async (userId: string) => {
-    try {
-      console.log('🔄 Création des paramètres pour l\'utilisateur:', userId);
-      
-      const { data: existing } = await supabase
-        .from('user_settings')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-
-      console.log('📊 Paramètres existants:', existing);
-      if (!existing) {
-        console.log('➕ Création de nouveaux paramètres utilisateur...');
-        
-        const { error } = await supabase
-          .from('user_settings')
-          .insert({
-            user_id: userId,
-            devise: '€',
-            personne1_nom: 'Partenaire 1',
-            personne1_couleur: '#3B82F6',
-            personne2_nom: 'Partenaire 2',
-            personne2_couleur: '#EF4444'
-          });
-
-        if (error) {
-          console.error('❌ Erreur création paramètres:', error);
-          console.error('📝 Détails de l\'erreur:', error.message);
-          console.error('💡 Code d\'erreur:', error.code);
-          // Ne pas bloquer si les paramètres existent déjà
-          if (error.code !== '23505') { // 23505 = unique violation
-            throw error;
-          }
-        } else {
-          console.log('✅ Paramètres utilisateur créés avec succès');
-        }
-      } else {
-        console.log('✅ Paramètres utilisateur déjà existants');
-      }
-    } catch (error) {
-      console.error('❌ Erreur complète vérification paramètres:', error);
-      // Ne pas bloquer l'application pour les erreurs de paramètres
-      console.log('⚠️ Continuons avec les paramètres par défaut');
-    }
-  };
-
   // Charger les données depuis Supabase
   const chargerDonnees = async () => {
     if (!user) return;
 
     try {
-      setChargement(true);
       setErreur(null);
       
       console.log('📊 Chargement des données pour utilisateur:', user.id);
+
+      // Créer les paramètres utilisateur s'ils n'existent pas
+      await creerParametresUtilisateurSiNecessaire(user.id);
 
       // Charger les paramètres utilisateur
       const { data: settings, error: settingsError } = await supabase
@@ -320,8 +280,36 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
-    } finally {
-      setChargement(false);
+    }
+  };
+
+  // Créer les paramètres utilisateur par défaut si nécessaire
+  const creerParametresUtilisateurSiNecessaire = async (userId: string) => {
+    try {
+      const { data: existing } = await supabase
+        .from('user_settings')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (!existing) {
+        const { error } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: userId,
+            devise: '€',
+            personne1_nom: 'Partenaire 1',
+            personne1_couleur: '#3B82F6',
+            personne2_nom: 'Partenaire 2',
+            personne2_couleur: '#EF4444'
+          });
+
+        if (error && error.code !== '23505') {
+          console.warn('Erreur création paramètres:', error.message);
+        }
+      }
+    } catch (error) {
+      console.warn('Erreur vérification paramètres:', error);
     }
   };
 
