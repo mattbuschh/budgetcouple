@@ -125,12 +125,23 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔄 Changement d\'état auth:', event, session?.user?.email);
+        
         setUser(session?.user ?? null);
         if (session?.user) {
-          // Créer les paramètres utilisateur s'ils n'existent pas
-          await creerParametresUtilisateur(session.user.id);
-          await chargerDonnees();
+          try {
+            console.log('👤 Utilisateur connecté, création des paramètres...');
+            // Créer les paramètres utilisateur s'ils n'existent pas
+            await creerParametresUtilisateur(session.user.id);
+            console.log('📊 Chargement des données...');
+            await chargerDonnees();
+            console.log('✅ Initialisation terminée avec succès');
+          } catch (error) {
+            console.error('❌ Erreur lors de l\'initialisation utilisateur:', error);
+            setErreur(error instanceof Error ? error.message : 'Erreur d\'initialisation');
+          }
         } else {
+          console.log('👤 Utilisateur déconnecté');
           setDonnees(donneesParDefaut);
         }
         setChargement(false);
@@ -143,13 +154,18 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   // Créer les paramètres utilisateur par défaut
   const creerParametresUtilisateur = async (userId: string) => {
     try {
+      console.log('🔄 Création des paramètres pour l\'utilisateur:', userId);
+      
       const { data: existing } = await supabase
         .from('user_settings')
         .select('id')
         .eq('user_id', userId)
         .single();
 
+      console.log('📊 Paramètres existants:', existing);
       if (!existing) {
+        console.log('➕ Création de nouveaux paramètres utilisateur...');
+        
         const { error } = await supabase
           .from('user_settings')
           .insert({
@@ -162,11 +178,19 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           });
 
         if (error) {
-          console.error('Erreur création paramètres:', error);
+          console.error('❌ Erreur création paramètres:', error);
+          console.error('📝 Détails de l\'erreur:', error.message);
+          console.error('💡 Code d\'erreur:', error.code);
+          throw error;
+        } else {
+          console.log('✅ Paramètres utilisateur créés avec succès');
         }
+      } else {
+        console.log('✅ Paramètres utilisateur déjà existants');
       }
     } catch (error) {
-      console.error('Erreur vérification paramètres:', error);
+      console.error('❌ Erreur complète vérification paramètres:', error);
+      throw error;
     }
   };
 
@@ -458,15 +482,30 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       setChargement(true);
       setErreur(null);
 
+      console.log('🔄 Tentative de création de compte pour:', email);
+
       const { error } = await supabase.auth.signUp({
         email,
         password
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur Supabase auth.signUp:', error);
+        throw error;
+      }
+
+      console.log('✅ Compte créé avec succès dans auth.users');
     } catch (error) {
-      console.error('Erreur lors de l\'inscription:', error);
-      setErreur(error instanceof Error ? error.message : 'Erreur d\'inscription');
+      console.error('❌ Erreur complète lors de l\'inscription:', error);
+      
+      let messageErreur = 'Erreur d\'inscription';
+      if (error instanceof Error) {
+        messageErreur = error.message;
+        console.error('📝 Message d\'erreur:', error.message);
+        console.error('📋 Stack trace:', error.stack);
+      }
+      
+      setErreur(messageErreur);
       throw error;
     } finally {
       setChargement(false);
