@@ -108,26 +108,6 @@ export function Parametres() {
       setSauvegarde(false);
     }
   };
-  const sauvegarderParametres = async () => {
-    try {
-      setSauvegarde(true);
-      
-      // Sauvegarder les personnes
-      await mettreAJourPersonnes(parametresPersonnes);
-      
-      // Sauvegarder la devise
-      await mettreAJourDevise(devise);
-      
-      setModifie(false);
-      
-      // Afficher un message de succès temporaire
-      setTimeout(() => setSauvegarde(false), 2000);
-    } catch (error) {
-      console.error('Erreur sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde');
-      setSauvegarde(false);
-    }
-  };
 
   const gererAjoutCompte = async () => {
     if (nouveauCompte.nom && comptesBancaires.length < 16) {
