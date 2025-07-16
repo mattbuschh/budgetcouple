@@ -6,8 +6,12 @@ interface SectionEpargneProps {
   mois: number;
 }
 
+const nomsMois = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
 export function SectionEpargne({ mois }: SectionEpargneProps) {
-  const { donnees, mettreAJourDonneesMois } = useBudget();
+  const { donnees, mettreAJourDonneesMois, ajouterEntreeGoogleSheets } = useBudget();
   const [ajoutEnCours, setAjoutEnCours] = useState(false);
   const [indexModification, setIndexModification] = useState<number | null>(null);
   const [nouvelleEpargne, setNouvelleEpargne] = useState<EntreeEpargne>({
@@ -18,8 +22,27 @@ export function SectionEpargne({ mois }: SectionEpargneProps) {
 
   const donneesMois = donnees.mois[mois];
 
-  const gererAjout = () => {
+  const gererAjout = async () => {
     if (nouvelleEpargne.objectif && nouvelleEpargne.montant > 0) {
+      try {
+        // Ajouter à Google Sheets
+        const today = new Date().toISOString().split('T')[0];
+        await ajouterEntreeGoogleSheets({
+          date: today,
+          type: 'épargne',
+          partenaire: nouvelleEpargne.personne === 'personne1' ? '1' : 
+                     nouvelleEpargne.personne === 'personne2' ? '2' : 'partagé',
+          categorie: nouvelleEpargne.objectif,
+          montant: nouvelleEpargne.montant,
+          compte: 'Épargne', // Valeur par défaut
+          commentaire: `Objectif: ${nouvelleEpargne.objectif}`,
+          mois: nomsMois[mois]
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout à Google Sheets:', error);
+      }
+      
+      // Ajouter localement
       const epargneModifiee = [...donneesMois.epargne, nouvelleEpargne];
       mettreAJourDonneesMois(mois, { epargne: epargneModifiee });
       setNouvelleEpargne({ objectif: '', montant: 0, personne: 'personne1' });

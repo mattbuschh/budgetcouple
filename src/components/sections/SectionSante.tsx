@@ -6,8 +6,12 @@ interface SectionSanteProps {
   mois: number;
 }
 
+const nomsMois = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
 export function SectionSante({ mois }: SectionSanteProps) {
-  const { donnees, mettreAJourDonneesMois } = useBudget();
+  const { donnees, mettreAJourDonneesMois, ajouterEntreeGoogleSheets } = useBudget();
   const [ajoutEnCours, setAjoutEnCours] = useState(false);
   const [indexModification, setIndexModification] = useState<number | null>(null);
   const [nouvelleSante, setNouvelleSante] = useState<RemboursementSante>({
@@ -19,8 +23,26 @@ export function SectionSante({ mois }: SectionSanteProps) {
 
   const donneesMois = donnees.mois[mois];
 
-  const gererAjout = () => {
+  const gererAjout = async () => {
     if (nouvelleSante.description && nouvelleSante.montant > 0) {
+      try {
+        // Ajouter à Google Sheets
+        const today = new Date().toISOString().split('T')[0];
+        await ajouterEntreeGoogleSheets({
+          date: today,
+          type: 'santé',
+          partenaire: nouvelleSante.personne === 'personne1' ? '1' : '2',
+          categorie: 'Santé',
+          montant: nouvelleSante.montant,
+          compte: 'Santé', // Valeur par défaut
+          commentaire: `${nouvelleSante.description} - ${nouvelleSante.rembourse ? 'Remboursé' : 'En attente'}`,
+          mois: nomsMois[mois]
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout à Google Sheets:', error);
+      }
+      
+      // Ajouter localement
       const santeModifiee = [...donneesMois.remboursementsSante, nouvelleSante];
       mettreAJourDonneesMois(mois, { remboursementsSante: santeModifiee });
       setNouvelleSante({ description: '', montant: 0, personne: 'personne1', rembourse: false });

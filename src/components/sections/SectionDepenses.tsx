@@ -6,6 +6,10 @@ interface SectionDepensesProps {
   mois: number;
 }
 
+const nomsMois = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
 const categoriesDepenses = [
   'Alimentation & Restaurants',
   'Transport',
@@ -22,7 +26,7 @@ const categoriesDepenses = [
 ];
 
 export function SectionDepenses({ mois }: SectionDepensesProps) {
-  const { donnees, mettreAJourDonneesMois } = useBudget();
+  const { donnees, mettreAJourDonneesMois, ajouterEntreeGoogleSheets } = useBudget();
   const [ajoutEnCours, setAjoutEnCours] = useState(false);
   const [indexModification, setIndexModification] = useState<number | null>(null);
   const [categoriePersonnalisee, setCategoriePersonnalisee] = useState('');
@@ -78,6 +82,30 @@ export function SectionDepenses({ mois }: SectionDepensesProps) {
     
     if (nouvelleDepense.description && nouvelleDepense.montant > 0 && categorieFinale) {
       const depenseComplete = { ...nouvelleDepense, categorie: categorieFinale };
+      
+      // Ajouter à Google Sheets
+      const ajouterAGoogleSheets = async () => {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          await ajouterEntreeGoogleSheets({
+            date: today,
+            type: 'dépense',
+            partenaire: depenseComplete.personne === 'personne1' ? '1' : 
+                       depenseComplete.personne === 'personne2' ? '2' : 'partagé',
+            categorie: categorieFinale,
+            montant: depenseComplete.montant,
+            compte: 'Compte principal', // Valeur par défaut
+            commentaire: depenseComplete.description,
+            mois: nomsMois[mois]
+          });
+        } catch (error) {
+          console.error('Erreur lors de l\'ajout à Google Sheets:', error);
+        }
+      };
+      
+      ajouterAGoogleSheets();
+      
+      // Ajouter localement
       const depensesModifiees = [...donneesMois.depenses, depenseComplete];
       mettreAJourDonneesMois(mois, { depenses: depensesModifiees });
       

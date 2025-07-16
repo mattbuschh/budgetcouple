@@ -32,8 +32,16 @@ export function AjoutRapide({ moisSelectionne }: AjoutRapideProps) {
     }
 
     try {
+      const today = new Date().toISOString().split('T')[0];
+      
       await ajouterEntreeGoogleSheets({
-        ...formData,
+        date: today,
+        type: formData.type,
+        partenaire: formData.partenaire,
+        categorie: formData.categorie,
+        montant: formData.montant,
+        compte: formData.compte,
+        commentaire: formData.commentaire,
         mois: moisSelectionne
       });
 
@@ -56,11 +64,6 @@ export function AjoutRapide({ moisSelectionne }: AjoutRapideProps) {
       ...prev,
       [field]: value
     }));
-  };
-
-  const getTypeColor = (type: string) => {
-    const typeOption = TYPE_OPTIONS.find(option => option.value === type);
-    return typeOption?.color || 'text-gray-600';
   };
 
   return (

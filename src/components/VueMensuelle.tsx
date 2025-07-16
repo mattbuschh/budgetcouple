@@ -18,7 +18,7 @@ const nomsMois = [
 ];
 
 export function VueMensuelle({ mois }: VueMensuelleProps) {
-  const { donnees, calculerTotauxMensuels, donneesGoogleSheets } = useBudget();
+  const { donnees, calculerTotauxMensuels, donneesGoogleSheets, chargerDonneesGoogleSheets } = useBudget();
   const [sectionActive, setSectionActive] = useState<'revenus' | 'depenses' | 'epargne' | 'sante' | 'ajout-rapide'>('revenus');
 
   const donneesMois = donnees.mois[mois];
@@ -28,6 +28,11 @@ export function VueMensuelle({ mois }: VueMensuelleProps) {
   const donneesGoogleSheetsMois = donneesGoogleSheets.filter(
     entree => entree.mois === nomsMois[mois]
   );
+
+  // Charger les données Google Sheets au montage du composant
+  React.useEffect(() => {
+    chargerDonneesGoogleSheets();
+  }, [mois]);
 
   const couleursSections = {
     revenus: 'bg-green-50 border-green-200',
@@ -62,6 +67,66 @@ export function VueMensuelle({ mois }: VueMensuelleProps) {
           </div>
         )}
       </div>
+
+      {/* Affichage des données Google Sheets pour le mois */}
+      {donneesGoogleSheetsMois.length > 0 && (
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">
+            Données Google Sheets - {nomsMois[mois]} ({donneesGoogleSheetsMois.length})
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Partenaire</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Compte</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {donneesGoogleSheetsMois.map((entree, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                      {new Date(entree.date).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className={`font-medium ${
+                        entree.type === 'revenu' ? 'text-green-600' :
+                        entree.type === 'dépense' ? 'text-red-600' :
+                        entree.type === 'épargne' ? 'text-blue-600' : 'text-purple-600'
+                      }`}>
+                        {entree.type.charAt(0).toUpperCase() + entree.type.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-gray-900">
+                      {entree.partenaire === '1' ? donnees.personnes.personne1.nom : donnees.personnes.personne2.nom}
+                    </td>
+                    <td className="px-3 py-2 text-gray-900 truncate max-w-xs">{entree.categorie}</td>
+                    <td className="px-3 py-2 font-medium">
+                      <span className={
+                        entree.type === 'revenu' ? 'text-green-600' :
+                        entree.type === 'dépense' ? 'text-red-600' :
+                        entree.type === 'épargne' ? 'text-blue-600' : 'text-purple-600'
+                      }>
+                        {entree.montant.toLocaleString('fr-FR', { 
+                          style: 'currency', 
+                          currency: 'EUR' 
+                        })}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-gray-900 truncate max-w-xs">{entree.compte}</td>
+                    <td className="px-3 py-2 text-gray-900 truncate max-w-xs">{entree.commentaire}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Cartes de Résumé */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">

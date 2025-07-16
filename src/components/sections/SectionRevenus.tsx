@@ -6,8 +6,12 @@ interface SectionRevenusProps {
   mois: number;
 }
 
+const nomsMois = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
 export function SectionRevenus({ mois }: SectionRevenusProps) {
-  const { donnees, mettreAJourDonneesMois } = useBudget();
+  const { donnees, mettreAJourDonneesMois, ajouterEntreeGoogleSheets } = useBudget();
   const [ajoutEnCours, setAjoutEnCours] = useState(false);
   const [indexModification, setIndexModification] = useState<number | null>(null);
   const [nouveauRevenu, setNouveauRevenu] = useState<EntreeRevenu>({
@@ -18,8 +22,26 @@ export function SectionRevenus({ mois }: SectionRevenusProps) {
 
   const donneesMois = donnees.mois[mois];
 
-  const gererAjout = () => {
+  const gererAjout = async () => {
     if (nouveauRevenu.source && nouveauRevenu.montant > 0) {
+      try {
+        // Ajouter à Google Sheets
+        const today = new Date().toISOString().split('T')[0];
+        await ajouterEntreeGoogleSheets({
+          date: today,
+          type: 'revenu',
+          partenaire: nouveauRevenu.personne === 'personne1' ? '1' : '2',
+          categorie: nouveauRevenu.source,
+          montant: nouveauRevenu.montant,
+          compte: 'Compte principal', // Valeur par défaut
+          commentaire: `Revenu: ${nouveauRevenu.source}`,
+          mois: nomsMois[mois]
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout à Google Sheets:', error);
+      }
+      
+      // Ajouter localement
       const revenusModifies = [...donneesMois.revenus, nouveauRevenu];
       mettreAJourDonneesMois(mois, { revenus: revenusModifies });
       setNouveauRevenu({ source: '', montant: 0, personne: 'personne1' });
