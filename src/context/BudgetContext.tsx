@@ -104,7 +104,8 @@ interface BudgetContextType {
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
 // URL de l'API Google Sheets
-const API_URL = 'https://v1.nocodeapi.com/mattbusch/google_sheets/leEhXUyGQcrZAMIJ?tabId=Feuille 1';
+const API_URL = 'const API_URL = 'https://v1.nocodeapi.com/mattbusch/google_sheets/leEhXUyGQcrZAMIJ?tabId=Feuille%201';
+
 
 // Données par défaut
 const donneesParDefaut: DonneesBudget = {
