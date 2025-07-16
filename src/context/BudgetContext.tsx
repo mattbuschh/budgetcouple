@@ -123,6 +123,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
   // Écouter les changements d'authentification
   useEffect(() => {
+    console.log('🔄 Initialisation du contexte Budget...');
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Changement d\'état auth:', event, session?.user?.email);
@@ -139,6 +141,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           } catch (error) {
             console.error('❌ Erreur lors de l\'initialisation utilisateur:', error);
             setErreur(error instanceof Error ? error.message : 'Erreur d\'initialisation');
+            setChargement(false); // Important: arrêter le chargement même en cas d'erreur
           }
         } else {
           console.log('👤 Utilisateur déconnecté');
@@ -181,7 +184,10 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           console.error('❌ Erreur création paramètres:', error);
           console.error('📝 Détails de l\'erreur:', error.message);
           console.error('💡 Code d\'erreur:', error.code);
-          throw error;
+          // Ne pas bloquer si les paramètres existent déjà
+          if (error.code !== '23505') { // 23505 = unique violation
+            throw error;
+          }
         } else {
           console.log('✅ Paramètres utilisateur créés avec succès');
         }
@@ -190,7 +196,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('❌ Erreur complète vérification paramètres:', error);
-      throw error;
+      // Ne pas bloquer l'application pour les erreurs de paramètres
+      console.log('⚠️ Continuons avec les paramètres par défaut');
     }
   };
 
