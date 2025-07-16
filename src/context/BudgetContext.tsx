@@ -440,60 +440,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       throw error;
     }
   };
-          personne1_nom: personnes.personne1.nom,
-          personne1_couleur: personnes.personne1.couleur,
-          personne1_photo: personnes.personne1.photo,
-          personne2_nom: personnes.personne2.nom,
-          personne2_couleur: personnes.personne2.couleur,
-          personne2_photo: personnes.personne2.photo
-        })
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('❌ Erreur mise à jour personnes:', error);
-        console.error('📝 Détails de l\'erreur:', error.message);
-        console.error('💡 Code d\'erreur:', error.code);
-        throw error;
-      }
-      
-      console.log('✅ Personnes mises à jour avec succès');
-
-      setDonnees(prev => ({ ...prev, personnes }));
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour des personnes:', error);
-      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
-      throw error;
-    }
-  };
-
-  const mettreAJourDevise = async (devise: string) => {
-    if (!user) return;
-
-    try {
-      console.log('🔄 Mise à jour devise:', devise);
-      
-      const { error } = await supabase
-        .from('user_settings')
-        .update({
-          devise
-        })
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('❌ Erreur mise à jour devise:', error);
-        console.error('📝 Détails de l\'erreur:', error.message);
-        throw error;
-      }
-      
-      console.log('✅ Devise mise à jour avec succès');
-
-      setDonnees(prev => ({ ...prev, devise }));
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la devise:', error);
-      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
-      throw error;
-    }
-  };
 
   const mettreAJourComptesBancaires = async (comptes: CompteBancaire[]) => {
     if (!user) return;
