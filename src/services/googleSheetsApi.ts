@@ -10,7 +10,7 @@ export interface LigneBudget {
   mois: string;
 }
 
-const API_URL = 'https://v1.nocodeapi.com/mattbusch/google_sheets/leEhXUyGQcrZAMIJ?tabId=Feuille1';
+const API_URL = 'https://v1.nocodeapi.com/mattbusch/google_sheets/leEhXUyGQcrZAMIJ?tabId=Feuille 1';
 
 /**
  * Ajoute une ligne au Google Sheet
