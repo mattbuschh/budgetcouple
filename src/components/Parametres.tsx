@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useBudget } from '../context/BudgetContext';
-import { User, DollarSign, CreditCard, Plus, Trash2, Download, Upload, Camera, X } from 'lucide-react';
+import { User, DollarSign, CreditCard, Plus, Trash2, Download, Upload, Camera, X, Save } from 'lucide-react';
 
 export function Parametres() {
   const { donnees, mettreAJourPersonnes, mettreAJourDevise, mettreAJourComptesBancaires } = useBudget();
@@ -8,6 +8,8 @@ export function Parametres() {
   const [devise, setDevise] = useState(donnees.devise);
   const [comptesBancaires, setComptesBancaires] = useState(donnees.comptesBancaires);
   const [ajoutCompteEnCours, setAjoutCompteEnCours] = useState(false);
+  const [sauvegarde, setSauvegarde] = useState(false);
+  const [modifie, setModifie] = useState(false);
   const [nouveauCompte, setNouveauCompte] = useState({
     nom: '',
     solde: 0,
@@ -34,13 +36,7 @@ export function Parametres() {
       }
     };
     setParametresPersonnes(modifie);
-    
-    // Sauvegarder immédiatement
-    mettreAJourPersonnes(modifie).catch(error => {
-      console.error('Erreur sauvegarde personne:', error);
-      // Revenir à l'état précédent en cas d'erreur
-      setParametresPersonnes(parametresPersonnes);
-    });
+    setModifie(true);
   };
 
   const gererTelechargerPhoto = (personne: 'personne1' | 'personne2', event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,14 +65,7 @@ export function Parametres() {
           }
         };
         setParametresPersonnes(modifie);
-        
-        // Sauvegarder immédiatement
-        mettreAJourPersonnes(modifie).catch(error => {
-          console.error('Erreur sauvegarde photo:', error);
-          alert('Erreur lors de la sauvegarde de la photo');
-          // Revenir à l'état précédent en cas d'erreur
-          setParametresPersonnes(parametresPersonnes);
-        });
+        setModifie(true);
       };
       lecteur.readAsDataURL(fichier);
     }
@@ -91,29 +80,36 @@ export function Parametres() {
       }
     };
     setParametresPersonnes(modifie);
-    
-    // Sauvegarder immédiatement
-    mettreAJourPersonnes(modifie).catch(error => {
-      console.error('Erreur suppression photo:', error);
-      alert('Erreur lors de la suppression de la photo');
-      // Revenir à l'état précédent en cas d'erreur
-      setParametresPersonnes(parametresPersonnes);
-    });
+    setModifie(true);
   };
 
   const gererMiseAJourDevise = (nouvelleDevise: string) => {
     setDevise(nouvelleDevise);
-    
-    // Sauvegarder immédiatement
-    mettreAJourDevise(nouvelleDevise).catch(error => {
-      console.error('Erreur sauvegarde devise:', error);
-      alert('Erreur lors de la sauvegarde de la devise');
-      // Revenir à l'état précédent en cas d'erreur
-      setDevise(devise);
-    });
+    setModifie(true);
   };
 
-  const gererAjoutCompte = () => {
+  const sauvegarderParametres = async () => {
+    try {
+      setSauvegarde(true);
+      
+      // Sauvegarder les personnes
+      await mettreAJourPersonnes(parametresPersonnes);
+      
+      // Sauvegarder la devise
+      await mettreAJourDevise(devise);
+      
+      setModifie(false);
+      
+      // Afficher un message de succès temporaire
+      setTimeout(() => setSauvegarde(false), 2000);
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      alert('Erreur lors de la sauvegarde');
+      setSauvegarde(false);
+    }
+  };
+
+  const gererAjoutCompte = async () => {
     if (nouveauCompte.nom && comptesBancaires.length < 16) {
       const comptesModifies = [...comptesBancaires, {
         ...nouveauCompte,
@@ -121,38 +117,44 @@ export function Parametres() {
       }];
       setComptesBancaires(comptesModifies);
       
-      // Sauvegarder immédiatement
-      mettreAJourComptesBancaires(comptesModifies).catch(error => {
+      try {
+        await mettreAJourComptesBancaires(comptesModifies);
+        setNouveauCompte({ nom: '', solde: 0, couleur: '#3B82F6' });
+        setAjoutCompteEnCours(false);
+      } catch (error) {
         console.error('Erreur ajout compte:', error);
         alert('Erreur lors de l\'ajout du compte');
-        // Revenir à l'état précédent en cas d'erreur
         setComptesBancaires(comptesBancaires);
-      });
-      
-      setNouveauCompte({ nom: '', solde: 0, couleur: '#3B82F6' });
-      setAjoutCompteEnCours(false);
+      }
     }
   };
 
-  const gererSuppressionCompte = (id: string) => {
+  const gererSuppressionCompte = async (id: string) => {
     const comptesModifies = comptesBancaires.filter(compte => compte.id !== id);
     setComptesBancaires(comptesModifies);
-    mettreAJourComptesBancaires(comptesModifies);
+    
+    try {
+      await mettreAJourComptesBancaires(comptesModifies);
+    } catch (error) {
+      console.error('Erreur suppression compte:', error);
+      alert('Erreur lors de la suppression du compte');
+      setComptesBancaires(comptesBancaires);
+    }
   };
 
-  const gererMiseAJourCompte = (id: string, champ: string, valeur: string | number) => {
+  const gererMiseAJourCompte = async (id: string, champ: string, valeur: string | number) => {
     const comptesModifies = comptesBancaires.map(compte =>
       compte.id === id ? { ...compte, [champ]: valeur } : compte
     );
     setComptesBancaires(comptesModifies);
     
-    // Sauvegarder immédiatement
-    mettreAJourComptesBancaires(comptesModifies).catch(error => {
+    try {
+      await mettreAJourComptesBancaires(comptesModifies);
+    } catch (error) {
       console.error('Erreur mise à jour compte:', error);
       alert('Erreur lors de la mise à jour du compte');
-      // Revenir à l'état précédent en cas d'erreur
       setComptesBancaires(comptesBancaires);
-    });
+    }
   };
 
   const exporterDonnees = () => {
@@ -185,7 +187,27 @@ export function Parametres() {
   return (
     <div className="space-y-6">
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Paramètres</h2>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Paramètres</h2>
+          
+          {/* Bouton de sauvegarde */}
+          <button
+            onClick={sauvegarderParametres}
+            disabled={!modifie || sauvegarde}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
+              modifie && !sauvegarde
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : sauvegarde
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Save size={16} className="sm:w-5 sm:h-5" />
+            <span>
+              {sauvegarde ? 'Sauvegardé ✓' : modifie ? 'Sauvegarder' : 'Aucune modification'}
+            </span>
+          </button>
+        </div>
         
         {/* Paramètres des Personnes */}
         <div className="space-y-6">
