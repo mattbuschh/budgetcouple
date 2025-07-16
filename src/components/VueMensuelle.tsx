@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useBudget } from '../context/BudgetContext';
+import { useBudget } from '../context/SimpleBudgetContext';
 import { SectionRevenus } from './sections/SectionRevenus';
 import { SectionDepenses } from './sections/SectionDepenses';
 import { SectionEpargne } from './sections/SectionEpargne';

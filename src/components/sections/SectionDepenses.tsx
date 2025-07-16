@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useBudget, EntreeDepense } from '../../context/BudgetContext';
+import { useBudget, EntreeDepense } from '../../context/SimpleBudgetContext';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 
 interface SectionDepensesProps {

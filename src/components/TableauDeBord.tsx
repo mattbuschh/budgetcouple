@@ -1,7 +1,7 @@
 import React from 'react';
-import { useBudget } from '../context/BudgetContext';
+import { useBudget } from '../context/SimpleBudgetContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, PiggyBank, CreditCard, Database, User } from 'lucide-react';
+import { TrendingUp, DollarSign, PiggyBank, CreditCard } from 'lucide-react';
 
 const nomsMois = [
   'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
@@ -9,7 +9,7 @@ const nomsMois = [
 ];
 
 export function TableauDeBord() {
-  const { donnees, calculerTotauxMensuels, user } = useBudget();
+  const { donnees, calculerTotauxMensuels } = useBudget();
 
   const donneesAnnuelles = nomsMois.map((mois, index) => {
     const totaux = calculerTotauxMensuels(index);
@@ -46,27 +46,6 @@ export function TableauDeBord() {
 
   return (
     <div className="space-y-6">
-      {/* Indicateur de statut Supabase */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Database className="w-5 h-5 text-green-600" />
-            <div>
-              <h3 className="font-semibold text-gray-800">Base de données Supabase</h3>
-              <p className="text-sm text-gray-600">
-                Connecté en tant que {user?.email}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 text-green-600">
-              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-              <span className="text-sm">Synchronisé</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">

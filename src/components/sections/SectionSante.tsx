@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useBudget, RemboursementSante } from '../../context/BudgetContext';
+import { useBudget, RemboursementSante } from '../../context/SimpleBudgetContext';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 
 interface SectionSanteProps {

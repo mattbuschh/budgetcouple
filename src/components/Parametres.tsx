@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useBudget } from '../context/BudgetContext';
+import { useBudget } from '../context/SimpleBudgetContext';
 import { User, DollarSign, CreditCard, Plus, Trash2, Download, Upload, Camera, X, Save } from 'lucide-react';
 
 export function Parametres() {
