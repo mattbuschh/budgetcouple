@@ -95,9 +95,26 @@ const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
 export function BudgetProvider({ children }: { children: ReactNode }) {
   const [donnees, setDonnees] = useState<DonneesBudget>(() => {
-    // Charger depuis localStorage au démarrage
-    const saved = localStorage.getItem('budgetData');
-    return saved ? JSON.parse(saved) : donneesParDefaut;
+    try {
+      const saved = localStorage.getItem('budgetData');
+      if (saved) {
+        const parsedData = JSON.parse(saved);
+        
+        // Validation robuste des données
+        if (parsedData && 
+            parsedData.mois && 
+            Array.isArray(parsedData.mois) && 
+            parsedData.mois.length === 12 &&
+            parsedData.mois.every(mois => mois && typeof mois === 'object')) {
+          return parsedData;
+        }
+      }
+    } catch (error) {
+      console.warn('Erreur lors du chargement des données depuis localStorage:', error);
+    }
+    
+    // Fallback vers les données par défaut
+    return donneesParDefaut;
   });
 
   // Sauvegarder dans localStorage à chaque changement
@@ -106,6 +123,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   }, [donnees]);
 
   const calculerTotauxMensuels = (mois: number) => {
+    // Vérification de sécurité
+    if (!donnees.mois || !donnees.mois[mois]) {
+      return { totalRevenus: 0, totalDepenses: 0, totalEpargne: 0, restant: 0 };
+    }
+    
     const donneesMois = donnees.mois[mois];
     const totalRevenus = donneesMois.revenus.reduce((somme, revenu) => somme + revenu.montant, 0);
     const totalDepenses = donneesMois.depenses.reduce((somme, depense) => somme + depense.montant, 0);
