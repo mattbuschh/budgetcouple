@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ajouterLigneBudget, chargerBudget, LigneBudget } from '../services/googleSheetsApi';
 
 // Interface pour une ligne de données Google Sheets
 export interface GoogleSheetsEntry {
@@ -15,9 +16,11 @@ export interface GoogleSheetsEntry {
 // Interface pour le contexte
 interface BudgetContextType {
   donneesGoogleSheets: GoogleSheetsEntry[];
+  donneesRaw: string[][];
   chargement: boolean;
   erreur: string | null;
   chargerDonneesGoogleSheets: () => Promise<void>;
+  ajouterEntree: (ligne: LigneBudget) => Promise<void>;
 }
 
 // Créer le contexte
@@ -29,6 +32,7 @@ const API_URL = 'https://v1.nocodeapi.com/mattbusch/google_sheets/leEhXUyGQcrZAM
 // Provider du contexte
 export function BudgetProvider({ children }: { children: ReactNode }) {
   const [donneesGoogleSheets, setDonneesGoogleSheets] = useState<GoogleSheetsEntry[]>([]);
+  const [donneesRaw, setDonneesRaw] = useState<string[][]>([]);
   const [chargement, setChargement] = useState<boolean>(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -40,22 +44,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 Chargement des données Google Sheets...');
       
-      const response = await fetch(API_URL);
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
-      }
-      
-      const data = await response.json();
+      const data = await chargerBudget();
       console.log('📊 Données brutes reçues:', data);
       
-      // Vérifier la structure des données
-      if (!data.data || !Array.isArray(data.data)) {
-        throw new Error('Format de données invalide: data.data manquant ou non-array');
-      }
-      
       // Ignorer la première ligne (en-têtes) et traiter les données
-      const lignes = data.data.slice(1);
+      const lignes = data.slice(1);
+      setDonneesRaw(data);
       
       const entrees: GoogleSheetsEntry[] = lignes
         .filter((ligne: any[]) => ligne && ligne.length >= 8) // Filtrer les lignes vides
@@ -91,6 +85,19 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Fonction pour ajouter une entrée
+  const ajouterEntree = async (ligne: LigneBudget): Promise<void> => {
+    try {
+      await ajouterLigneBudget(ligne);
+      // Recharger les données après ajout
+      await chargerDonneesGoogleSheets();
+    } catch (error) {
+      const messageErreur = error instanceof Error ? error.message : 'Erreur lors de l\'ajout';
+      setErreur(messageErreur);
+      throw error;
+    }
+  };
+
   // Charger les données automatiquement au montage du provider
   useEffect(() => {
     console.log('🚀 BudgetProvider monté - Chargement initial des données');
@@ -100,9 +107,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   // Valeur du contexte
   const contextValue: BudgetContextType = {
     donneesGoogleSheets,
+    donneesRaw,
     chargement,
     erreur,
-    chargerDonneesGoogleSheets
+    chargerDonneesGoogleSheets,
+    ajouterEntree
   };
 
   return (
