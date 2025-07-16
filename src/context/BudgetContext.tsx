@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, BudgetEntry, BankAccount, UserSettings } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { setupDatabaseAlternative } from '../lib/database-setup';
 
 // Interfaces pour la compatibilité avec l'interface existante
 export interface EntreeRevenu {
@@ -124,9 +123,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
   // Écouter les changements d'authentification
   useEffect(() => {
-    // Configurer la base de données au démarrage
-    setupDatabaseAlternative();
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null);
