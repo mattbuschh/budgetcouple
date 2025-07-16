@@ -315,6 +315,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
+      console.log('🔄 Mise à jour des personnes:', personnes);
+      
       const { error } = await supabase
         .from('user_settings')
         .upsert({
@@ -325,14 +327,22 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           personne2_nom: personnes.personne2.nom,
           personne2_couleur: personnes.personne2.couleur,
           personne2_photo: personnes.personne2.photo
+        }, {
+          onConflict: 'user_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur mise à jour personnes:', error);
+        throw error;
+      }
+      
+      console.log('✅ Personnes mises à jour avec succès');
 
       setDonnees(prev => ({ ...prev, personnes }));
     } catch (error) {
       console.error('Erreur lors de la mise à jour des personnes:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error;
     }
   };
 
@@ -340,19 +350,29 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
+      console.log('🔄 Mise à jour devise:', devise);
+      
       const { error } = await supabase
         .from('user_settings')
         .upsert({
           user_id: user.id,
           devise
+        }, {
+          onConflict: 'user_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur mise à jour devise:', error);
+        throw error;
+      }
+      
+      console.log('✅ Devise mise à jour avec succès');
 
       setDonnees(prev => ({ ...prev, devise }));
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la devise:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error;
     }
   };
 
@@ -360,30 +380,44 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
+      console.log('🔄 Mise à jour comptes bancaires:', comptes);
+      
       // Supprimer tous les comptes existants
-      await supabase
+      const { error: deleteError } = await supabase
         .from('bank_accounts')
         .delete()
         .eq('user_id', user.id);
+        
+      if (deleteError) {
+        console.error('❌ Erreur suppression comptes:', deleteError);
+        throw deleteError;
+      }
 
       // Ajouter les nouveaux comptes
       if (comptes.length > 0) {
         const { error } = await supabase
           .from('bank_accounts')
           .insert(comptes.map(compte => ({
+            id: compte.id,
             user_id: user.id,
             nom: compte.nom,
             solde: compte.solde,
             couleur: compte.couleur
           })));
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Erreur ajout comptes:', error);
+          throw error;
+        }
       }
+      
+      console.log('✅ Comptes bancaires mis à jour avec succès');
 
       setDonnees(prev => ({ ...prev, comptesBancaires: comptes }));
     } catch (error) {
       console.error('Erreur lors de la mise à jour des comptes bancaires:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error;
     }
   };
 
@@ -412,10 +446,13 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
+      console.log('🔄 Ajout entrée:', entree);
+      
       const { error } = await supabase
         .from('budget_entries')
         .insert({
           user_id: user.id,
+          date: new Date().toISOString().split('T')[0],
           type: entree.type,
           personne: entree.personne,
           categorie: entree.categorie,
@@ -427,13 +464,19 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           rembourse: entree.rembourse
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur ajout entrée:', error);
+        throw error;
+      }
+      
+      console.log('✅ Entrée ajoutée avec succès');
 
       // Recharger les données
       await chargerDonnees();
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'entrée:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error;
     }
   };
 

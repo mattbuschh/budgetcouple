@@ -34,7 +34,13 @@ export function Parametres() {
       }
     };
     setParametresPersonnes(modifie);
-    mettreAJourPersonnes(modifie);
+    
+    // Sauvegarder immédiatement
+    mettreAJourPersonnes(modifie).catch(error => {
+      console.error('Erreur sauvegarde personne:', error);
+      // Revenir à l'état précédent en cas d'erreur
+      setParametresPersonnes(parametresPersonnes);
+    });
   };
 
   const gererTelechargerPhoto = (personne: 'personne1' | 'personne2', event: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,7 +69,14 @@ export function Parametres() {
           }
         };
         setParametresPersonnes(modifie);
-        mettreAJourPersonnes(modifie);
+        
+        // Sauvegarder immédiatement
+        mettreAJourPersonnes(modifie).catch(error => {
+          console.error('Erreur sauvegarde photo:', error);
+          alert('Erreur lors de la sauvegarde de la photo');
+          // Revenir à l'état précédent en cas d'erreur
+          setParametresPersonnes(parametresPersonnes);
+        });
       };
       lecteur.readAsDataURL(fichier);
     }
@@ -78,12 +91,26 @@ export function Parametres() {
       }
     };
     setParametresPersonnes(modifie);
-    mettreAJourPersonnes(modifie);
+    
+    // Sauvegarder immédiatement
+    mettreAJourPersonnes(modifie).catch(error => {
+      console.error('Erreur suppression photo:', error);
+      alert('Erreur lors de la suppression de la photo');
+      // Revenir à l'état précédent en cas d'erreur
+      setParametresPersonnes(parametresPersonnes);
+    });
   };
 
   const gererMiseAJourDevise = (nouvelleDevise: string) => {
     setDevise(nouvelleDevise);
-    mettreAJourDevise(nouvelleDevise);
+    
+    // Sauvegarder immédiatement
+    mettreAJourDevise(nouvelleDevise).catch(error => {
+      console.error('Erreur sauvegarde devise:', error);
+      alert('Erreur lors de la sauvegarde de la devise');
+      // Revenir à l'état précédent en cas d'erreur
+      setDevise(devise);
+    });
   };
 
   const gererAjoutCompte = () => {
@@ -93,7 +120,15 @@ export function Parametres() {
         id: Date.now().toString()
       }];
       setComptesBancaires(comptesModifies);
-      mettreAJourComptesBancaires(comptesModifies);
+      
+      // Sauvegarder immédiatement
+      mettreAJourComptesBancaires(comptesModifies).catch(error => {
+        console.error('Erreur ajout compte:', error);
+        alert('Erreur lors de l\'ajout du compte');
+        // Revenir à l'état précédent en cas d'erreur
+        setComptesBancaires(comptesBancaires);
+      });
+      
       setNouveauCompte({ nom: '', solde: 0, couleur: '#3B82F6' });
       setAjoutCompteEnCours(false);
     }
@@ -110,7 +145,14 @@ export function Parametres() {
       compte.id === id ? { ...compte, [champ]: valeur } : compte
     );
     setComptesBancaires(comptesModifies);
-    mettreAJourComptesBancaires(comptesModifies);
+    
+    // Sauvegarder immédiatement
+    mettreAJourComptesBancaires(comptesModifies).catch(error => {
+      console.error('Erreur mise à jour compte:', error);
+      alert('Erreur lors de la mise à jour du compte');
+      // Revenir à l'état précédent en cas d'erreur
+      setComptesBancaires(comptesBancaires);
+    });
   };
 
   const exporterDonnees = () => {
