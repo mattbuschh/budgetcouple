@@ -10,8 +10,6 @@ export function Parametres() {
   const [ajoutCompteEnCours, setAjoutCompteEnCours] = useState(false);
   const [sauvegarde, setSauvegarde] = useState(false);
   const [modifie, setModifie] = useState(false);
-  const [sauvegarde, setSauvegarde] = useState(false);
-  const [modifie, setModifie] = useState(false);
   const [nouveauCompte, setNouveauCompte] = useState({
     nom: '',
     solde: 0,
