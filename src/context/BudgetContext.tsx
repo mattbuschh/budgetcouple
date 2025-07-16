@@ -484,13 +484,20 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
       console.log('🔄 Tentative de création de compte pour:', email);
 
+      // Essayer d'abord avec la confirmation d'email désactivée
       const { error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          emailRedirectTo: undefined,
+          data: {}
+        }
       });
 
       if (error) {
         console.error('❌ Erreur Supabase auth.signUp:', error);
+        console.error('📝 Code d\'erreur:', error.status);
+        console.error('📝 Message:', error.message);
         throw error;
       }
 
@@ -501,8 +508,15 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       let messageErreur = 'Erreur d\'inscription';
       if (error instanceof Error) {
         messageErreur = error.message;
-        console.error('📝 Message d\'erreur:', error.message);
-        console.error('📋 Stack trace:', error.stack);
+        
+        // Messages d'erreur plus clairs
+        if (error.message.includes('Database error')) {
+          messageErreur = 'Erreur de base de données. Vérifiez la configuration Supabase.';
+        } else if (error.message.includes('User already registered')) {
+          messageErreur = 'Cet email est déjà utilisé. Essayez de vous connecter.';
+        } else if (error.message.includes('Invalid email')) {
+          messageErreur = 'Format d\'email invalide.';
+        }
       }
       
       setErreur(messageErreur);
