@@ -332,11 +332,114 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      console.log('🔄 Mise à jour des personnes:', personnes);
+      console.log('🔄 Mise à jour des personnes pour user:', user.id);
+      console.log('📝 Données à sauvegarder:', personnes);
       
-      const { error } = await supabase
+      // D'abord vérifier si l'enregistrement existe
+      const { data: existing, error: checkError } = await supabase
         .from('user_settings')
-        .update({
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Erreur vérification existence:', checkError);
+        throw checkError;
+      }
+
+      console.log('📊 Enregistrement existant:', existing);
+
+      let result;
+      if (existing) {
+        // UPDATE si existe
+        console.log('🔄 UPDATE de l\'enregistrement existant');
+        result = await supabase
+          .from('user_settings')
+          .update({
+            personne1_nom: personnes.personne1.nom,
+            personne1_couleur: personnes.personne1.couleur,
+            personne1_photo: personnes.personne1.photo,
+            personne2_nom: personnes.personne2.nom,
+            personne2_couleur: personnes.personne2.couleur,
+            personne2_photo: personnes.personne2.photo
+          })
+          .eq('user_id', user.id);
+      } else {
+        // INSERT si n'existe pas
+        console.log('➕ INSERT nouvel enregistrement');
+        result = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: user.id,
+            personne1_nom: personnes.personne1.nom,
+            personne1_couleur: personnes.personne1.couleur,
+            personne1_photo: personnes.personne1.photo,
+            personne2_nom: personnes.personne2.nom,
+            personne2_couleur: personnes.personne2.couleur,
+            personne2_photo: personnes.personne2.photo
+          });
+      }
+
+      if (result.error) {
+        console.error('❌ Erreur sauvegarde:', result.error);
+        console.error('📝 Code erreur:', result.error.code);
+        console.error('📝 Message:', result.error.message);
+        throw result.error;
+      }
+      
+      console.log('✅ Personnes mises à jour avec succès');
+      setDonnees(prev => ({ ...prev, personnes }));
+    } catch (error) {
+      console.error('❌ Erreur complète mise à jour personnes:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error;
+    }
+  };
+
+  const mettreAJourDevise = async (devise: string) => {
+    if (!user) return;
+
+    try {
+      console.log('🔄 Mise à jour devise:', devise);
+      
+      // Vérifier si l'enregistrement existe
+      const { data: existing, error: checkError } = await supabase
+        .from('user_settings')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      let result;
+      if (existing) {
+        result = await supabase
+          .from('user_settings')
+          .update({ devise })
+          .eq('user_id', user.id);
+      } else {
+        result = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: user.id,
+            devise
+          });
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+      
+      console.log('✅ Devise mise à jour avec succès');
+      setDonnees(prev => ({ ...prev, devise }));
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la devise:', error);
+      setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error;
+    }
+  };
           personne1_nom: personnes.personne1.nom,
           personne1_couleur: personnes.personne1.couleur,
           personne1_photo: personnes.personne1.photo,
