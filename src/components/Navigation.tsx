@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, Calendar, Settings, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
+import { Home, Calendar, Settings, ChevronLeft, ChevronRight, Menu, X, LogOut } from 'lucide-react';
+import { useBudget } from '../context/BudgetContext';
 
 interface NavigationProps {
   vueActuelle: 'tableau-de-bord' | 'mensuel' | 'parametres';
@@ -15,6 +16,7 @@ const mois = [
 
 export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onChangementMois }: NavigationProps) {
   const [menuMobileOuvert, setMenuMobileOuvert] = React.useState(false);
+  const { signOut, user } = useBudget();
 
   const moisPrecedent = () => {
     onChangementMois(moisSelectionne === 0 ? 11 : moisSelectionne - 1);
@@ -24,6 +26,13 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
     onChangementMois(moisSelectionne === 11 ? 0 : moisSelectionne + 1);
   };
 
+  const gererDeconnexion = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
+  };
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,6 +43,11 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               <span className="hidden sm:inline">Gestionnaire de Budget</span>
               <span className="sm:hidden">Budget</span>
             </h1>
+            {user && (
+              <span className="ml-4 text-sm text-gray-600 hidden md:inline">
+                {user.email}
+              </span>
+            )}
           </div>
 
           {/* Navigation desktop */}
@@ -78,6 +92,16 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
             </button>
           </div>
 
+          {/* Bouton de déconnexion - desktop */}
+          <div className="hidden md:flex items-center">
+            <button
+              onClick={gererDeconnexion}
+              className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+            >
+              <LogOut size={16} />
+              <span>Déconnexion</span>
+            </button>
+          </div>
           {/* Sélecteur de mois - desktop */}
           {vueActuelle === 'mensuel' && (
             <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
@@ -180,6 +204,17 @@ export function Navigation({ vueActuelle, onChangementVue, moisSelectionne, onCh
               >
                 <Settings size={20} />
                 <span>Paramètres</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  gererDeconnexion();
+                  setMenuMobileOuvert(false);
+                }}
+                className="px-4 py-3 rounded-lg flex items-center space-x-3 transition-colors text-gray-600 hover:bg-gray-100"
+              >
+                <LogOut size={20} />
+                <span>Déconnexion</span>
               </button>
             </div>
           </div>

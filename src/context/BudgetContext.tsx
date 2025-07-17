@@ -118,18 +118,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   const [donnees, setDonnees] = useState<DonneesBudget>(donneesParDefaut);
   const [chargement, setChargement] = useState<boolean>(true);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState<boolean>(false);
 
   // Fonction pour charger les données
   const chargerDonnees = async (currentUser: User) => {
     try {
       setErreur(null);
       
-      console.log('📊 Chargement des données pour utilisateur:', currentUser.id);
-
-      // Créer les paramètres utilisateur s'ils n'existent pas
-      await creerParametresUtilisateurSiNecessaire(currentUser.id);
-
       // Charger les paramètres utilisateur
       const { data: settings, error: settingsError } = await supabase
         .from('user_settings')
@@ -138,11 +132,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (settingsError && settingsError.code !== 'PGRST116') {
-        console.error('❌ Erreur chargement settings:', settingsError);
         throw settingsError;
       }
-      
-      console.log('⚙️ Settings chargés:', settings);
 
       // Charger les comptes bancaires
       const { data: bankAccounts, error: bankError } = await supabase
@@ -152,11 +143,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .order('created_at');
 
       if (bankError) {
-        console.error('❌ Erreur chargement comptes:', bankError);
         throw bankError;
       }
-      
-      console.log('🏦 Comptes chargés:', bankAccounts);
 
       // Charger les entrées de budget
       const { data: entries, error: entriesError } = await supabase
@@ -166,11 +154,8 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .order('date');
 
       if (entriesError) {
-        console.error('❌ Erreur chargement entrées:', entriesError);
         throw entriesError;
       }
-      
-      console.log('📝 Entrées chargées:', entries);
 
       // Transformer les données pour l'interface existante
       const nouvellesDonnees: DonneesBudget = {
@@ -232,8 +217,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           };
         })
       };
-      
-      console.log('🎯 Données finales transformées:', nouvellesDonnees);
 
       setDonnees(nouvellesDonnees);
     } catch (error) {
@@ -242,71 +225,64 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Créer les paramètres utilisateur par défaut si nécessaire
-  const creerParametresUtilisateurSiNecessaire = async (userId: string) => {
-    try {
-      const { data: existing } = await supabase
-        .from('user_settings')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
+  // Effet pour l'authentification
+  useEffect(() => {
+    let isMounted = true;
 
-      if (!existing) {
-        const { error } = await supabase
-          .from('user_settings')
-          .insert({
-            user_id: userId,
-            devise: '€',
-            personne1_nom: 'Partenaire 1',
-            personne1_couleur: '#3B82F6',
-            personne2_nom: 'Partenaire 2',
-            personne2_couleur: '#EF4444'
-          });
-
-        if (error && error.code !== '23505') {
-          console.warn('Erreur création paramètres:', error.message);
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (isMounted) {
+          if (session?.user) {
+            setUser(session.user);
+            await chargerDonnees(session.user);
+          }
+          setChargement(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Erreur initialisation auth:', error);
+          setChargement(false);
         }
       }
-    } catch (error) {
-      console.warn('Erreur vérification paramètres:', error);
-    }
-  };
+    };
 
-  // Effet pour l'authentification - SANS CONDITIONS
-  useEffect(() => {
-    console.log('🔄 Initialisation du contexte Budget...');
-    
+    initAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔄 Changement d\'état auth:', event, session?.user?.email);
-        
+        if (!isMounted) return;
+
         const currentUser = session?.user || null;
         setUser(currentUser);
         
-        if (currentUser && !initialized) {
+        if (currentUser) {
           try {
-            console.log('👤 Utilisateur connecté, création des paramètres...');
-            console.log('📊 Chargement des données...');
             await chargerDonnees(currentUser);
-            setInitialized(true);
-            console.log('✅ Initialisation terminée avec succès');
           } catch (error) {
-            console.error('❌ Erreur lors de l\'initialisation utilisateur:', error);
+            console.error('Erreur lors du chargement des données:', error);
             setErreur(error instanceof Error ? error.message : 'Erreur d\'initialisation');
           }
-        } else if (!currentUser) {
-          console.log('👤 Utilisateur déconnecté');
+        } else {
           setDonnees(donneesParDefaut);
-          setInitialized(false);
         }
+        
         setChargement(false);
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [initialized]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const calculerTotauxMensuels = (mois: number) => {
+    if (!donnees.mois || !donnees.mois[mois]) {
+      return { totalRevenus: 0, totalDepenses: 0, totalEpargne: 0, restant: 0 };
+    }
+    
     const donneesMois = donnees.mois[mois];
     const totalRevenus = donneesMois.revenus.reduce((somme, revenu) => somme + revenu.montant, 0);
     const totalDepenses = donneesMois.depenses.reduce((somme, depense) => somme + depense.montant, 0);
@@ -320,9 +296,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      console.log('🔄 Mise à jour des personnes pour user:', user.id);
-      console.log('📝 Données à sauvegarder:', personnes);
-      
       const { data: existing, error: checkError } = await supabase
         .from('user_settings')
         .select('id')
@@ -330,15 +303,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ Erreur vérification existence:', checkError);
         throw checkError;
       }
 
-      console.log('📊 Enregistrement existant:', existing);
-
       let result;
       if (existing) {
-        console.log('🔄 UPDATE de l\'enregistrement existant');
         result = await supabase
           .from('user_settings')
           .update({
@@ -351,7 +320,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           })
           .eq('user_id', user.id);
       } else {
-        console.log('➕ INSERT nouvel enregistrement');
         result = await supabase
           .from('user_settings')
           .insert({
@@ -366,14 +334,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       }
 
       if (result.error) {
-        console.error('❌ Erreur sauvegarde:', result.error);
         throw result.error;
       }
       
-      console.log('✅ Personnes mises à jour avec succès');
       setDonnees(prev => ({ ...prev, personnes }));
     } catch (error) {
-      console.error('❌ Erreur complète mise à jour personnes:', error);
+      console.error('Erreur lors de la mise à jour des personnes:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
       throw error;
     }
@@ -383,8 +349,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      console.log('🔄 Mise à jour devise:', devise);
-      
       const { data: existing, error: checkError } = await supabase
         .from('user_settings')
         .select('id')
@@ -414,7 +378,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         throw result.error;
       }
       
-      console.log('✅ Devise mise à jour avec succès');
       setDonnees(prev => ({ ...prev, devise }));
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la devise:', error);
@@ -427,19 +390,14 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      console.log('🔄 Mise à jour comptes bancaires:', comptes);
-      
       const { error: deleteError } = await supabase
         .from('bank_accounts')
         .delete()
         .eq('user_id', user.id);
         
       if (deleteError) {
-        console.error('❌ Erreur suppression comptes:', deleteError);
         throw deleteError;
       }
-      
-      console.log('🗑️ Comptes supprimés avec succès');
 
       if (comptes.length > 0) {
         const { error } = await supabase
@@ -452,14 +410,9 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           })));
 
         if (error) {
-          console.error('❌ Erreur ajout comptes:', error);
           throw error;
         }
-        
-        console.log('➕ Comptes ajoutés avec succès');
       }
-      
-      console.log('✅ Comptes bancaires mis à jour avec succès');
 
       setDonnees(prev => ({ ...prev, comptesBancaires: comptes }));
     } catch (error) {
@@ -491,9 +444,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      console.log('🔄 Ajout entrée:', entree);
-      
-      // Mapper les types français vers les types de la base
       const typeMapping: Record<string, string> = {
         'revenu': 'revenu',
         'dépense': 'depense',
@@ -501,7 +451,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         'santé': 'sante'
       };
 
-      // Mapper les partenaires
       const personneMapping: Record<string, string> = {
         '1': 'personne1',
         '2': 'personne2',
@@ -525,16 +474,11 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         });
 
       if (error) {
-        console.error('❌ Erreur ajout entrée:', error);
         throw error;
       }
-      
-      console.log('✅ Entrée ajoutée avec succès');
 
       // Recharger les données
-      if (user) {
-        await chargerDonnees(user);
-      }
+      await chargerDonnees(user);
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'entrée:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur inconnue');
@@ -567,8 +511,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       setChargement(true);
       setErreur(null);
 
-      console.log('🔄 Tentative de création de compte pour:', email);
-
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -579,13 +521,10 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        console.error('❌ Erreur Supabase auth.signUp:', error);
         throw error;
       }
-
-      console.log('✅ Compte créé avec succès dans auth.users');
     } catch (error) {
-      console.error('❌ Erreur complète lors de l\'inscription:', error);
+      console.error('Erreur lors de l\'inscription:', error);
       
       let messageErreur = 'Erreur d\'inscription';
       if (error instanceof Error) {
@@ -611,7 +550,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      setInitialized(false);
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
       setErreur(error instanceof Error ? error.message : 'Erreur de déconnexion');

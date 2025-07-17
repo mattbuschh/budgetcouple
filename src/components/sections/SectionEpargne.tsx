@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useBudget, EntreeEpargne } from '../../context/SimpleBudgetContext';
+import { useBudget, EntreeEpargne } from '../../context/BudgetContext';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 
 interface SectionEpargneProps {
