@@ -206,7 +206,7 @@ export function Parametres() {
         <div className="space-y-6">
           <div>
             <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-4 flex items-center">
-              <User className="mr-2" size={18} className="sm:w-5 sm:h-5" />
+              <User className="mr-2 sm:w-5 sm:h-5" size={18} />
               Informations des Partenaires
             </h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -339,7 +339,7 @@ export function Parametres() {
           {/* Paramètres de Devise */}
           <div>
             <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-4 flex items-center">
-              <DollarSign className="mr-2" size={18} className="sm:w-5 sm:h-5" />
+              <DollarSign className="mr-2 sm:w-5 sm:h-5" size={18} />
               Devise
             </h3>
             <select
@@ -359,7 +359,7 @@ export function Parametres() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base sm:text-lg font-semibold text-gray-700 flex items-center">
-                <CreditCard className="mr-2" size={18} className="sm:w-5 sm:h-5" />
+                <CreditCard className="mr-2 sm:w-5 sm:h-5" size={18} />
                 Comptes Bancaires ({comptesBancaires.length}/16)
               </h3>
               <button
